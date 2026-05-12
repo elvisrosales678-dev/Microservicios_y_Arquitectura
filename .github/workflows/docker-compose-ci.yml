@@ -1,0 +1,60 @@
+
+name: docker-compose-ci
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-and-evidence:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Wait for services
+        run: |
+          echo "Esperando servicios..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3001/health && curl -s http://localhost:3002/health; then
+              echo "Servicios OK"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Servicios no respondieron"
+          docker compose logs
+          exit 1
+
+      - name: Evidencia endpoints + evento
+        run: |
+          echo "--- GET /students/1 ---"
+          curl -s http://localhost:3001/students/1
+
+          echo "--- POST /enrollments ---"
+          curl -s -X POST http://localhost:3002/enrollments \
+            -H "Content-Type: application/json" \
+            -d '{"studentId":"1","course":"Arquitectura de Software"}'
+
+          echo "--- GET /events ---"
+          curl -s http://localhost:3002/events
+
+          echo "--- LOGS enrollment-service ---"
+          docker logs enrollment-service || true
+
+      - name: Evidencia docker ps / docker images
+        run: |
+          docker ps
+          docker images
+
+      - name: Shutdown
+        if: always()
+        run: docker compose down
+``
