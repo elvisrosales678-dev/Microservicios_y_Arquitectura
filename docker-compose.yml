@@ -1,0 +1,16 @@
+services:
+  student-service:
+    build: ./student-service
+    container_name: student-service
+    ports:
+      - "3001:8000"
+
+  enrollment-service:
+    build: ./enrollment-service
+    container_name: enrollment-service
+    environment:
+      - STUDENT_SERVICE_URL=http://student-service:8000
+    depends_on:
+      - student-service
+    ports:
+      - "3002:8000"
